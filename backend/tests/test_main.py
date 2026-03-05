@@ -1,9 +1,25 @@
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.board_store import DEFAULT_BOARD
 from app.main import HELLO_PAGE, create_app, resolve_frontend_asset
+from app.openrouter_client import OpenRouterRequestError
+
+
+class StubAIClient:
+    def __init__(self, model: str, response: str | None = None, error: Exception | None = None) -> None:
+        self.model = model
+        self._response = response
+        self._error = error
+
+    def smoke_check(self) -> str:
+        if self._error is not None:
+            raise self._error
+        if self._response is None:
+            raise RuntimeError("stub response missing")
+        return self._response
 
 
 def test_root_serves_hello_html_without_static_build(tmp_path: Path) -> None:
@@ -22,6 +38,58 @@ def test_health_endpoint_returns_ok_payload(tmp_path: Path) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "service": "pm-mvp-backend"}
+
+
+def test_ai_connectivity_returns_smoke_result(tmp_path: Path) -> None:
+    client = TestClient(
+        create_app(
+            frontend_dir=None,
+            db_path=tmp_path / "pm.sqlite3",
+            ai_client=StubAIClient(model="openrouter/free", response="4"),
+        )
+    )
+
+    response = client.post("/api/ai/connectivity")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "model": "openrouter/free",
+        "prompt": "2+2",
+        "response": "4",
+    }
+
+
+def test_ai_connectivity_maps_provider_failure_to_502(tmp_path: Path) -> None:
+    client = TestClient(
+        create_app(
+            frontend_dir=None,
+            db_path=tmp_path / "pm.sqlite3",
+            ai_client=StubAIClient(
+                model="openrouter/free",
+                error=OpenRouterRequestError("provider request failed"),
+            ),
+        )
+    )
+
+    response = client.post("/api/ai/connectivity")
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "provider request failed"
+
+
+def test_ai_connectivity_missing_api_key_returns_500_and_logs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    client = TestClient(create_app(frontend_dir=None, db_path=tmp_path / "pm.sqlite3"))
+
+    with caplog.at_level("ERROR"):
+        response = client.post("/api/ai/connectivity")
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "OPENROUTER_API_KEY is not set"
+    assert "OpenRouter connectivity failed due to missing config" in caplog.text
 
 
 def test_database_bootstrap_creates_file_and_seed_board(tmp_path: Path) -> None:

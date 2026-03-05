@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import Any
+import logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
@@ -12,6 +13,9 @@ from app.board_store import (
     resolve_db_path,
     update_board_for_user,
 )
+from app.openrouter_client import OpenRouterClient, OpenRouterConfigError, OpenRouterRequestError
+
+logger = logging.getLogger(__name__)
 
 HELLO_PAGE = """<!doctype html>
 <html lang="en">
@@ -118,10 +122,22 @@ class BoardUpdateRequest(BaseModel):
     board: dict[str, Any]
 
 
-def create_app(frontend_dir: Path | None = None, db_path: Path | None = None) -> FastAPI:
+class AIConnectivityResponse(BaseModel):
+    status: str
+    model: str
+    prompt: str
+    response: str
+
+
+def create_app(
+    frontend_dir: Path | None = None,
+    db_path: Path | None = None,
+    ai_client: OpenRouterClient | None = None,
+) -> FastAPI:
     app = FastAPI(title="Project Management MVP API")
     resolved_frontend_dir = frontend_dir if frontend_dir is not None else resolve_frontend_dir()
     resolved_db_path = db_path if db_path is not None else resolve_db_path()
+    resolved_ai_client = ai_client if ai_client is not None else OpenRouterClient.from_env()
     initialize_database(resolved_db_path)
 
     @app.get("/api/health")
@@ -143,6 +159,25 @@ def create_app(frontend_dir: Path | None = None, db_path: Path | None = None) ->
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return BoardResponse(username=username, board=updated_board)
+
+    @app.post("/api/ai/connectivity", response_model=AIConnectivityResponse)
+    def post_ai_connectivity_check() -> AIConnectivityResponse:
+        prompt = "2+2"
+        try:
+            response_text = resolved_ai_client.smoke_check()
+        except OpenRouterConfigError as exc:
+            logger.error("OpenRouter connectivity failed due to missing config: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        except OpenRouterRequestError as exc:
+            logger.error("OpenRouter connectivity request failed: %s", exc)
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        return AIConnectivityResponse(
+            status="ok",
+            model=resolved_ai_client.model,
+            prompt=prompt,
+            response=response_text,
+        )
 
     @app.get("/", response_class=HTMLResponse)
     def read_root() -> Response:

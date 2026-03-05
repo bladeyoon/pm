@@ -17,6 +17,10 @@ This document defines the execution plan for the MVP in `AGENTS.md`.
 - Testing quality bar:
   - Minimum 80% unit test coverage for implemented backend/frontend units in each completed phase.
   - Robust integration testing for cross-component or cross-service behavior.
+- Runtime/testing decisions from completed phases:
+  - Default Docker host port is `8010` (override with `APP_PORT`).
+  - Full-stack Playwright runs use `E2E_BASE_URL` to target containerized app.
+  - Frontend persistence flow waits for pending save before logout and uses `cache: "no-store"` on board API requests.
 - Approval gate: complete planning artifacts first, then wait for user approval before coding phases.
 
 ## Global Definition of Done
@@ -137,16 +141,16 @@ This document defines the execution plan for the MVP in `AGENTS.md`.
 ### Tests
 
 - Unit:
-  - [ ] Schema serialization/deserialization tests for board JSON.
+  - [x] Schema serialization/deserialization tests for board JSON.
 - Integration:
-  - [ ] Round-trip test: save board JSON, read board JSON, verify equality.
+  - [x] Round-trip test: save board JSON, read board JSON, verify equality.
 - Coverage:
-  - [ ] Backend changed units >= 80%.
+  - [x] Backend changed units >= 80%.
 
 ### Success Criteria
 
-- [ ] Schema documented and approved by user.
-- [ ] JSON persistence contract is explicit and test-backed.
+- [x] Schema documented and approved by user.
+- [x] JSON persistence contract is explicit and test-backed.
 
 ## Part 6 - Backend Kanban API
 
@@ -191,6 +195,7 @@ This document defines the execution plan for the MVP in `AGENTS.md`.
 - Integration:
   - [x] UI + backend persistence flow tests for key board operations.
   - [x] Refresh behavior test confirms persisted board reloads correctly.
+  - [x] Logout/login flow confirms persisted board reloads correctly.
 - Coverage:
   - [x] Frontend changed units >= 80%.
 
@@ -203,26 +208,26 @@ This document defines the execution plan for the MVP in `AGENTS.md`.
 
 ### Checklist
 
-- [ ] Implement backend AI client using OpenRouter configuration.
-- [ ] Read API key from environment and fail fast when missing.
-- [ ] Add connectivity endpoint/path used for simple prompt validation.
-- [ ] Validate with "2+2" smoke call.
-- [ ] Document environment variables and troubleshooting steps.
+- [x] Implement backend AI client using OpenRouter configuration.
+- [x] Read API key from environment and fail clearly when connectivity endpoint is called.
+- [x] Add connectivity endpoint/path used for simple prompt validation.
+- [x] Validate with "2+2" smoke call.
+- [x] Document environment variables and troubleshooting steps.
 
 ### Tests
 
 - Unit:
-  - [ ] AI client tests with mocked provider responses and failures.
+  - [x] AI client tests with mocked provider responses and failures.
 - Integration:
-  - [ ] Connectivity test path using controlled test doubles.
-  - [ ] Manual smoke verification with real key for "2+2".
+  - [x] Connectivity test path using controlled test doubles.
+  - [x] Manual smoke verification with real key for "2+2".
 - Coverage:
-  - [ ] Backend changed units >= 80%.
+  - [x] Backend changed units >= 80%.
 
 ### Success Criteria
 
-- [ ] Backend can successfully call OpenRouter.
-- [ ] Connectivity behavior is test-covered and documented.
+- [x] Backend can successfully call OpenRouter.
+- [x] Connectivity behavior is test-covered and documented.
 
 ## Part 9 - Structured Output With Optional Board Mutation
 
