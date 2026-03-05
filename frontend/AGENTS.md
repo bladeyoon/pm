@@ -28,6 +28,8 @@ This document describes the current Kanban frontend implementation in `frontend/
 - After sign-in, users see `KanbanBoard` with a logout control.
 - Board is loaded from backend per authenticated user (`GET /api/board/{username}`).
 - Board updates are persisted via backend (`PUT /api/board/{username}`).
+- Sidebar AI chat calls backend (`POST /api/ai/chat/{username}`) with prompt + conversation history.
+- AI chat responses can optionally include board mutations; UI auto-refreshes board after accepted mutation.
 - The static build output is served by FastAPI in Docker (Part 3) and board state is persisted through backend API calls.
 - Authenticated users can:
   - Rename fixed columns.
@@ -45,6 +47,9 @@ This document describes the current Kanban frontend implementation in `frontend/
   - Holds board state (`BoardData`) in React state.
   - Loads board from backend when `username` prop is provided.
   - Persists board changes to backend on mutations.
+  - Hosts sidebar AI chat UI and conversation state.
+  - Sends chat requests and handles pending/error/success states.
+  - Applies AI mutation responses and refreshes board from backend.
   - Handles drag start/end and card movement.
   - Handles column rename, add card, delete card.
 - `src/components/KanbanColumn.tsx`:
@@ -75,10 +80,11 @@ This document describes the current Kanban frontend implementation in `frontend/
   - `src/lib/kanban.test.ts`: `moveCard` behavior.
   - `src/components/KanbanBoard.test.tsx`: render, rename, add/remove card flows.
   - `src/components/KanbanBoard.persistence.test.tsx`: backend load/save behavior with mocked fetch.
+  - `src/components/KanbanBoard.chat.test.tsx`: chat success/error + mutation refresh behavior.
   - `src/app/page.test.tsx`: login failure/success, session restore, logout flow.
   - `src/components/KanbanCardPreview.test.tsx`: preview content rendering.
 - Integration/E2E:
-  - `tests/kanban.spec.ts`: login flows plus persisted board load/add/move/reload interactions.
+  - `tests/kanban.spec.ts`: login flows, board interactions, persistence, and AI chat flows.
 - Test tooling config:
   - `vitest.config.ts`
   - `playwright.config.ts`
@@ -96,7 +102,6 @@ This document describes the current Kanban frontend implementation in `frontend/
 
 ## Known Limitations (Current State)
 
-- No AI chat sidebar.
 - No backend auth/session verification yet (frontend-only auth gate for MVP).
 - Board is persisted as whole-board JSON payloads (coarse-grained updates).
 

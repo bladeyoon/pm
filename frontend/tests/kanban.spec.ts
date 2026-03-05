@@ -1,5 +1,57 @@
 import { expect, test } from "@playwright/test";
 
+const createBoardFixture = () => ({
+  columns: [
+    { id: "col-backlog", title: "Backlog", cardIds: ["card-1", "card-2"] },
+    { id: "col-discovery", title: "Discovery", cardIds: ["card-3"] },
+    { id: "col-progress", title: "In Progress", cardIds: ["card-4", "card-5"] },
+    { id: "col-review", title: "Review", cardIds: ["card-6"] },
+    { id: "col-done", title: "Done", cardIds: ["card-7", "card-8"] },
+  ],
+  cards: {
+    "card-1": {
+      id: "card-1",
+      title: "Align roadmap themes",
+      details: "Draft quarterly themes with impact statements and metrics.",
+    },
+    "card-2": {
+      id: "card-2",
+      title: "Gather customer signals",
+      details: "Review support tags, sales notes, and churn feedback.",
+    },
+    "card-3": {
+      id: "card-3",
+      title: "Prototype analytics view",
+      details: "Sketch initial dashboard layout and key drill-downs.",
+    },
+    "card-4": {
+      id: "card-4",
+      title: "Refine status language",
+      details: "Standardize column labels and tone across the board.",
+    },
+    "card-5": {
+      id: "card-5",
+      title: "Design card layout",
+      details: "Add hierarchy and spacing for scanning dense lists.",
+    },
+    "card-6": {
+      id: "card-6",
+      title: "QA micro-interactions",
+      details: "Verify hover, focus, and loading states.",
+    },
+    "card-7": {
+      id: "card-7",
+      title: "Ship marketing page",
+      details: "Final copy approved and asset pack delivered.",
+    },
+    "card-8": {
+      id: "card-8",
+      title: "Close onboarding sprint",
+      details: "Document release notes and share internally.",
+    },
+  },
+});
+
 const login = async (page: import("@playwright/test").Page) => {
   await page.goto("/");
   await page.getByLabel("Username").fill("user");
@@ -111,4 +163,103 @@ test("persists board updates across logout and login", async ({ page }) => {
   await page.getByLabel("Password").fill("password");
   await page.getByRole("button", { name: /sign in/i }).click();
   await expect(page.getByText(cardTitle)).toBeVisible();
+});
+
+test("chat shows assistant response without board mutation", async ({ page }) => {
+  let boardState = createBoardFixture();
+  await page.route("**/api/board/user", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ status: 200, json: { board: boardState } });
+      return;
+    }
+    await route.continue();
+  });
+  await page.route("**/api/ai/chat/user", async (route) => {
+    await route.fulfill({
+      status: 200,
+      json: {
+        status: "ok",
+        model: "openrouter/free",
+        reply: "No board changes needed.",
+        boardUpdated: false,
+        board: null,
+      },
+    });
+  });
+
+  await login(page);
+  await page.getByLabel("Chat prompt").fill("Summarize my board");
+  await page.getByRole("button", { name: /send to ai/i }).click();
+  await expect(page.getByTestId("ai-chat-assistant-message").last()).toHaveText(
+    "No board changes needed."
+  );
+});
+
+test("chat with mutation refreshes board in UI", async ({ page }) => {
+  let boardState = createBoardFixture();
+  const aiCardId = "card-ai-playwright";
+
+  await page.route("**/api/board/user", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ status: 200, json: { board: boardState } });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.route("**/api/ai/chat/user", async (route) => {
+    boardState = {
+      ...boardState,
+      cards: {
+        ...boardState.cards,
+        [aiCardId]: {
+          id: aiCardId,
+          title: "AI staged item",
+          details: "Created from chat mutation response.",
+        },
+      },
+      columns: boardState.columns.map((column, index) =>
+        index === 0 ? { ...column, cardIds: [...column.cardIds, aiCardId] } : column
+      ),
+    };
+    await route.fulfill({
+      status: 200,
+      json: {
+        status: "ok",
+        model: "openrouter/free",
+        reply: "Added one backlog card.",
+        boardUpdated: true,
+        board: boardState,
+      },
+    });
+  });
+
+  await login(page);
+  await page.getByLabel("Chat prompt").fill("Add one backlog card");
+  await page.getByRole("button", { name: /send to ai/i }).click();
+  await expect(page.getByText("AI staged item")).toBeVisible();
+});
+
+test("chat invalid payload path shows error banner", async ({ page }) => {
+  const boardState = createBoardFixture();
+  await page.route("**/api/board/user", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ status: 200, json: { board: boardState } });
+      return;
+    }
+    await route.continue();
+  });
+  await page.route("**/api/ai/chat/user", async (route) => {
+    await route.fulfill({
+      status: 502,
+      json: { detail: "AI response must be valid JSON" },
+    });
+  });
+
+  await login(page);
+  await page.getByLabel("Chat prompt").fill("Do anything");
+  await page.getByRole("button", { name: /send to ai/i }).click();
+  await expect(
+    page.getByText("Unable to get AI response right now. Please try again.")
+  ).toBeVisible();
 });

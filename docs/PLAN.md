@@ -262,28 +262,28 @@ This document defines the execution plan for the MVP in `AGENTS.md`.
 
 ### Checklist
 
-- [ ] Add sidebar chat UI integrated into existing Kanban layout.
-- [ ] Implement conversation history handling in UI and backend request path.
-- [ ] Display assistant responses clearly with pending/error states.
-- [ ] Apply AI-provided board mutation when present.
-- [ ] Auto-refresh board state in UI after AI mutation is accepted.
+- [x] Add sidebar chat UI integrated into existing Kanban layout.
+- [x] Implement conversation history handling in UI and backend request path.
+- [x] Display assistant responses clearly with pending/error states.
+- [x] Apply AI-provided board mutation when present.
+- [x] Auto-refresh board state in UI after AI mutation is accepted.
 
 ### Tests
 
 - Unit:
-  - [ ] Chat UI state tests (send, loading, success, error).
-  - [ ] Board mutation application tests.
+  - [x] Chat UI state tests (send, loading, success, error).
+  - [x] Board mutation application tests.
 - Integration:
-  - [ ] End-to-end chat flow:
+  - [x] End-to-end chat flow:
     - assistant response without mutation
     - assistant response with mutation updates board
     - invalid AI payload error path
 - Coverage:
-  - [ ] Frontend changed units >= 80%.
+  - [x] Frontend changed units >= 80%.
 
 ### Success Criteria
 
-- [ ] Sidebar chat is usable and visually consistent with app styling.
-- [ ] AI responses appear in chat.
-- [ ] When AI mutation is provided and valid, board updates automatically.
-- [ ] Failure paths are handled gracefully without corrupting board state.
+- [x] Sidebar chat is usable and visually consistent with app styling.
+- [x] AI responses appear in chat.
+- [x] When AI mutation is provided and valid, board updates automatically.
+- [x] Failure paths are handled gracefully without corrupting board state.
