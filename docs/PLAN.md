@@ -178,26 +178,26 @@ This document defines the execution plan for the MVP in `AGENTS.md`.
 
 ### Checklist
 
-- [ ] Replace frontend in-memory board source with backend API integration.
-- [ ] Load board on login/session start.
-- [ ] Persist board changes (rename/move/add/delete) via API.
-- [ ] Handle loading, error, and retry states minimally and clearly.
-- [ ] Keep UX aligned with existing MVP styling.
+- [x] Replace frontend in-memory board source with backend API integration.
+- [x] Load board on login/session start.
+- [x] Persist board changes (rename/move/add/delete) via API.
+- [x] Handle loading, error, and retry states minimally and clearly.
+- [x] Keep UX aligned with existing MVP styling.
 
 ### Tests
 
 - Unit:
-  - [ ] Frontend API client and state transition tests.
+  - [x] Frontend API client and state transition tests.
 - Integration:
-  - [ ] UI + backend persistence flow tests for key board operations.
-  - [ ] Refresh behavior test confirms persisted board reloads correctly.
+  - [x] UI + backend persistence flow tests for key board operations.
+  - [x] Refresh behavior test confirms persisted board reloads correctly.
 - Coverage:
-  - [ ] Frontend changed units >= 80%.
+  - [x] Frontend changed units >= 80%.
 
 ### Success Criteria
 
-- [ ] Board state persists across page reloads.
-- [ ] Core board operations update both UI and backend consistently.
+- [x] Board state persists across page reloads.
+- [x] Core board operations update both UI and backend consistently.
 
 ## Part 8 - OpenRouter Connectivity
 

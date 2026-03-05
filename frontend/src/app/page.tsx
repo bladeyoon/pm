@@ -6,16 +6,20 @@ import { KanbanBoard } from "@/components/KanbanBoard";
 const AUTH_USER = "user";
 const AUTH_PASSWORD = "password";
 const AUTH_STORAGE_KEY = "kanban-authenticated";
+const AUTH_USERNAME_STORAGE_KEY = "kanban-username";
 
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authenticatedUsername, setAuthenticatedUsername] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     const isLoggedIn = window.sessionStorage.getItem(AUTH_STORAGE_KEY) === "true";
+    const storedUsername = window.sessionStorage.getItem(AUTH_USERNAME_STORAGE_KEY);
     setIsAuthenticated(isLoggedIn);
+    setAuthenticatedUsername(storedUsername || (isLoggedIn ? AUTH_USER : null));
   }, []);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -23,7 +27,9 @@ export default function Home() {
 
     if (username === AUTH_USER && password === AUTH_PASSWORD) {
       window.sessionStorage.setItem(AUTH_STORAGE_KEY, "true");
+      window.sessionStorage.setItem(AUTH_USERNAME_STORAGE_KEY, username);
       setIsAuthenticated(true);
+      setAuthenticatedUsername(username);
       setError("");
       setPassword("");
       return;
@@ -34,14 +40,16 @@ export default function Home() {
 
   const handleLogout = () => {
     window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    window.sessionStorage.removeItem(AUTH_USERNAME_STORAGE_KEY);
     setIsAuthenticated(false);
+    setAuthenticatedUsername(null);
     setUsername("");
     setPassword("");
     setError("");
   };
 
   if (isAuthenticated) {
-    return <KanbanBoard onLogout={handleLogout} />;
+    return <KanbanBoard onLogout={handleLogout} username={authenticatedUsername || AUTH_USER} />;
   }
 
   return (

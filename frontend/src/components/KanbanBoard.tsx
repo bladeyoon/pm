@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   closestCenter,
   DndContext,
@@ -19,11 +19,16 @@ import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
 
 type KanbanBoardProps = {
   onLogout?: () => void;
+  username?: string;
 };
 
-export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
+export const KanbanBoard = ({ onLogout, username }: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData>(() => initialData);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [isLoadingBoard, setIsLoadingBoard] = useState(Boolean(username));
+  const [isSavingBoard, setIsSavingBoard] = useState(false);
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
+  const pendingSaveRef = useRef<Promise<void> | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -41,6 +46,89 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
     return closestCenter(args);
   };
 
+  const saveBoard = async (nextBoard: BoardData) => {
+    if (!username) {
+      return;
+    }
+
+    setIsSavingBoard(true);
+    try {
+      const response = await fetch(`/api/board/${encodeURIComponent(username)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ board: nextBoard }),
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Save failed: ${response.status}`);
+      }
+    } finally {
+      setIsSavingBoard(false);
+    }
+  };
+
+  const updateBoard = (updater: (prev: BoardData) => BoardData) => {
+    setBoard((prev) => {
+      const next = updater(prev);
+      if (username) {
+        const pendingSave = saveBoard(next)
+          .then(() => setPersistenceError(null))
+          .catch(() => {
+            setPersistenceError(
+              "Unable to save board changes right now. Please try again."
+            );
+          });
+        pendingSaveRef.current = pendingSave;
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!username) {
+      setIsLoadingBoard(false);
+      return;
+    }
+
+    let isActive = true;
+    setIsLoadingBoard(true);
+    setPersistenceError(null);
+
+    void fetch(`/api/board/${encodeURIComponent(username)}`, {
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Load failed: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((payload: { board: BoardData }) => {
+        if (!isActive) {
+          return;
+        }
+        setBoard(payload.board);
+      })
+      .catch(() => {
+        if (!isActive) {
+          return;
+        }
+        setPersistenceError(
+          "Unable to load saved board. Showing local board instead."
+        );
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsLoadingBoard(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [username]);
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(event.active.id as string);
   };
@@ -53,14 +141,14 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
       return;
     }
 
-    setBoard((prev) => ({
+    updateBoard((prev) => ({
       ...prev,
       columns: moveCard(prev.columns, active.id as string, over.id as string),
     }));
   };
 
   const handleRenameColumn = (columnId: string, title: string) => {
-    setBoard((prev) => ({
+    updateBoard((prev) => ({
       ...prev,
       columns: prev.columns.map((column) =>
         column.id === columnId ? { ...column, title } : column
@@ -70,7 +158,7 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
 
   const handleAddCard = (columnId: string, title: string, details: string) => {
     const id = createId("card");
-    setBoard((prev) => ({
+    updateBoard((prev) => ({
       ...prev,
       cards: {
         ...prev.cards,
@@ -85,7 +173,7 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
   };
 
   const handleDeleteCard = (columnId: string, cardId: string) => {
-    setBoard((prev) => {
+    updateBoard((prev) => {
       return {
         ...prev,
         cards: Object.fromEntries(
@@ -105,6 +193,24 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
 
   const activeCard = activeCardId ? cardsById[activeCardId] : null;
 
+  const handleLogoutClick = async () => {
+    try {
+      if (pendingSaveRef.current) {
+        await pendingSaveRef.current;
+      }
+    } finally {
+      onLogout?.();
+    }
+  };
+
+  if (isLoadingBoard) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-xl items-center justify-center px-6">
+        <p className="text-sm font-medium text-[var(--gray-text)]">Loading board...</p>
+      </main>
+    );
+  }
+
   return (
     <div className="relative overflow-hidden">
       <div className="pointer-events-none absolute left-0 top-0 h-[420px] w-[420px] -translate-x-1/3 -translate-y-1/3 rounded-full bg-[radial-gradient(circle,_rgba(32,157,215,0.25)_0%,_rgba(32,157,215,0.05)_55%,_transparent_70%)]" />
@@ -112,6 +218,11 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
 
       <main className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col gap-10 px-6 pb-16 pt-12">
         <header className="flex flex-col gap-6 rounded-[32px] border border-[var(--stroke)] bg-white/80 p-8 shadow-[var(--shadow)] backdrop-blur">
+          {persistenceError ? (
+            <div className="rounded-2xl border border-[var(--secondary-purple)]/20 bg-[var(--secondary-purple)]/8 px-4 py-3 text-sm text-[var(--secondary-purple)]">
+              {persistenceError}
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
@@ -135,10 +246,11 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
               {onLogout ? (
                 <button
                   type="button"
-                  onClick={onLogout}
+                  onClick={() => void handleLogoutClick()}
+                  disabled={isSavingBoard}
                   className="mt-4 rounded-full border border-[var(--stroke)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--navy-dark)] transition hover:border-[var(--navy-dark)]"
                 >
-                  Log out
+                  {isSavingBoard ? "Saving..." : "Log out"}
                 </button>
               ) : null}
             </div>
