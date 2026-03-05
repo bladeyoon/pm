@@ -128,11 +128,11 @@ This document defines the execution plan for the MVP in `AGENTS.md`.
 
 ### Checklist
 
-- [ ] Define SQLite schema for users + board storage.
-- [ ] Store board data as serialized JSON in SQLite column/blob.
-- [ ] Document schema decisions, trade-offs, and migration approach in `docs/`.
-- [ ] Define JSON payload structure for board persistence.
-- [ ] Request and obtain user approval before implementing data access layer.
+- [x] Define SQLite schema for users + board storage.
+- [x] Store board data as serialized JSON in SQLite column/blob.
+- [x] Document schema decisions, trade-offs, and migration approach in `docs/`.
+- [x] Define JSON payload structure for board persistence.
+- [x] Request and obtain user approval before implementing data access layer.
 
 ### Tests
 
@@ -152,27 +152,27 @@ This document defines the execution plan for the MVP in `AGENTS.md`.
 
 ### Checklist
 
-- [ ] Implement DB initialization if file does not exist.
-- [ ] Implement API routes for reading and updating board per user.
-- [ ] Add request/response models and validation.
-- [ ] Add error handling for invalid payloads and unknown users.
-- [ ] Document endpoints and local test usage.
+- [x] Implement DB initialization if file does not exist.
+- [x] Implement API routes for reading and updating board per user.
+- [x] Add request/response models and validation.
+- [x] Add error handling for invalid payloads and unknown users.
+- [x] Document endpoints and local test usage.
 
 ### Tests
 
 - Unit:
-  - [ ] DB layer tests (create, read, update, initialization path).
-  - [ ] API handler tests for valid and invalid requests.
+  - [x] DB layer tests (create, read, update, initialization path).
+  - [x] API handler tests for valid and invalid requests.
 - Integration:
-  - [ ] API-to-DB tests proving persisted state across requests.
+  - [x] API-to-DB tests proving persisted state across requests.
 - Coverage:
-  - [ ] Backend changed units >= 80%.
+  - [x] Backend changed units >= 80%.
 
 ### Success Criteria
 
-- [ ] Backend can create DB automatically.
-- [ ] Board GET/UPDATE API operations work for target user.
-- [ ] Invalid requests return clear, consistent errors.
+- [x] Backend can create DB automatically.
+- [x] Board GET/UPDATE API operations work for target user.
+- [x] Invalid requests return clear, consistent errors.
 
 ## Part 7 - Frontend Wired to Backend Persistence
 

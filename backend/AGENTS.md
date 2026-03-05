@@ -1,15 +1,19 @@
 ## Backend Overview
 
-The backend is now scaffolded as a FastAPI service under `backend/`.
+The backend runs as a FastAPI service under `backend/`.
 
 ### Current implementation
 
 - App entrypoint: `backend/app/main.py`
+- Persistence module: `backend/app/board_store.py`
 - Endpoints:
   - `GET /` serves the built frontend app when static output exists; otherwise returns the hello-world fallback page.
   - `GET /api/health` returns JSON health data.
+  - `GET /api/board/{username}` returns a user's board, auto-creating user/default board when absent.
+  - `PUT /api/board/{username}` validates and updates a user's board JSON.
 - Non-API routes (`/{path}`) serve exported frontend assets and use SPA fallback to `index.html`.
 - Static directory is configured via `FRONTEND_STATIC_DIR` (set in Docker to `/app/frontend-static`).
+- Database path is configured with `DB_PATH` (default `backend/data/pm_mvp.sqlite3`).
 
 ### Tests
 
@@ -18,6 +22,9 @@ The backend is now scaffolded as a FastAPI service under `backend/`.
   - Root route behavior for fallback and static frontend modes.
   - Static asset path resolution and traversal protection.
   - Health endpoint returns expected JSON payload.
+  - DB bootstrap and default seed behavior.
+  - Board read/write round-trip.
+  - Invalid board payload and invalid username handling.
 
 ### Runtime
 

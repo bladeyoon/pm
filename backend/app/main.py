@@ -1,9 +1,17 @@
 import os
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel, ConfigDict
 from starlette.responses import Response
+from app.board_store import (
+    get_board_for_user,
+    initialize_database,
+    resolve_db_path,
+    update_board_for_user,
+)
 
 HELLO_PAGE = """<!doctype html>
 <html lang="en">
@@ -99,13 +107,42 @@ def resolve_frontend_asset(frontend_dir: Path, request_path: str) -> Path | None
     return None
 
 
-def create_app(frontend_dir: Path | None = None) -> FastAPI:
+class BoardResponse(BaseModel):
+    username: str
+    board: dict[str, Any]
+    schemaVersion: int = 1
+
+
+class BoardUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    board: dict[str, Any]
+
+
+def create_app(frontend_dir: Path | None = None, db_path: Path | None = None) -> FastAPI:
     app = FastAPI(title="Project Management MVP API")
     resolved_frontend_dir = frontend_dir if frontend_dir is not None else resolve_frontend_dir()
+    resolved_db_path = db_path if db_path is not None else resolve_db_path()
+    initialize_database(resolved_db_path)
 
     @app.get("/api/health")
     def read_health() -> dict[str, str]:
         return {"status": "ok", "service": "pm-mvp-backend"}
+
+    @app.get("/api/board/{username}", response_model=BoardResponse)
+    def read_board(username: str) -> BoardResponse:
+        try:
+            board = get_board_for_user(resolved_db_path, username)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return BoardResponse(username=username, board=board)
+
+    @app.put("/api/board/{username}", response_model=BoardResponse)
+    def write_board(username: str, payload: BoardUpdateRequest) -> BoardResponse:
+        try:
+            updated_board = update_board_for_user(resolved_db_path, username, payload.board)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return BoardResponse(username=username, board=updated_board)
 
     @app.get("/", response_class=HTMLResponse)
     def read_root() -> Response:
