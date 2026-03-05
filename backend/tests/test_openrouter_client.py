@@ -101,3 +101,27 @@ def test_ask_raises_on_invalid_provider_shape(monkeypatch: pytest.MonkeyPatch) -
 
     with pytest.raises(OpenRouterRequestError, match="missing choices"):
         client.ask("2+2")
+
+
+def test_chat_raises_when_messages_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    client = OpenRouterClient()
+
+    with pytest.raises(OpenRouterRequestError, match="messages must not be empty"):
+        client.chat([])
+
+
+def test_chat_raises_when_message_role_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    client = OpenRouterClient()
+
+    with pytest.raises(OpenRouterRequestError, match="message role must be system, user, or assistant"):
+        client.chat([{"role": "tool", "content": "x"}])
+
+
+def test_chat_raises_when_message_content_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    client = OpenRouterClient()
+
+    with pytest.raises(OpenRouterRequestError, match="message content must be a non-empty string"):
+        client.chat([{"role": "user", "content": "   "}])

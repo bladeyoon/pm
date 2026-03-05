@@ -12,6 +12,7 @@ The backend runs as a FastAPI service under `backend/`.
   - `GET /api/board/{username}` returns a user's board, auto-creating user/default board when absent.
   - `PUT /api/board/{username}` validates and updates a user's board JSON.
   - `POST /api/ai/connectivity` performs a hardcoded `"2+2"` OpenRouter connectivity check.
+  - `POST /api/ai/chat/{username}` sends board+prompt+history to OpenRouter and returns strict structured output (optional board mutation).
 - Non-API routes (`/{path}`) serve exported frontend assets and use SPA fallback to `index.html`.
 - Static directory is configured via `FRONTEND_STATIC_DIR` (set in Docker to `/app/frontend-static`).
 - Database path is configured with `DB_PATH` (default `backend/data/pm_mvp.sqlite3`).
@@ -28,6 +29,7 @@ The backend runs as a FastAPI service under `backend/`.
   - Invalid board payload and invalid username handling.
   - OpenRouter connectivity success/failure API behavior.
   - OpenRouter client parsing and provider error handling via mocks.
+  - Structured AI response validation and optional board mutation persistence flow.
 
 ### Runtime
 

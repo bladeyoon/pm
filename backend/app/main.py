@@ -7,6 +7,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, ConfigDict
 from starlette.responses import Response
+from app.ai_chat import (
+    AIChatRequest,
+    AIResponseValidationError,
+    build_ai_messages,
+    parse_structured_ai_response,
+)
 from app.board_store import (
     get_board_for_user,
     initialize_database,
@@ -129,6 +135,14 @@ class AIConnectivityResponse(BaseModel):
     response: str
 
 
+class AIChatResponse(BaseModel):
+    status: str
+    model: str
+    reply: str
+    boardUpdated: bool
+    board: dict[str, Any] | None = None
+
+
 def create_app(
     frontend_dir: Path | None = None,
     db_path: Path | None = None,
@@ -177,6 +191,46 @@ def create_app(
             model=resolved_ai_client.model,
             prompt=prompt,
             response=response_text,
+        )
+
+    @app.post("/api/ai/chat/{username}", response_model=AIChatResponse)
+    def post_ai_chat(username: str, payload: AIChatRequest) -> AIChatResponse:
+        try:
+            current_board = get_board_for_user(resolved_db_path, username)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        ai_messages = build_ai_messages(current_board, payload.prompt, payload.conversationHistory)
+        try:
+            raw_response = resolved_ai_client.chat(ai_messages)
+        except OpenRouterConfigError as exc:
+            logger.error("OpenRouter AI chat failed due to missing config: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        except OpenRouterRequestError as exc:
+            logger.error("OpenRouter AI chat request failed: %s", exc)
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        try:
+            structured = parse_structured_ai_response(raw_response)
+        except AIResponseValidationError as exc:
+            logger.error("OpenRouter AI chat returned invalid schema: %s", exc)
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        if structured.board is None:
+            return AIChatResponse(
+                status="ok",
+                model=resolved_ai_client.model,
+                reply=structured.message,
+                boardUpdated=False,
+            )
+
+        updated_board = update_board_for_user(resolved_db_path, username, structured.board)
+        return AIChatResponse(
+            status="ok",
+            model=resolved_ai_client.model,
+            reply=structured.message,
+            boardUpdated=True,
+            board=updated_board,
         )
 
     @app.get("/", response_class=HTMLResponse)

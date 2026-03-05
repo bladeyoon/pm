@@ -233,30 +233,30 @@ This document defines the execution plan for the MVP in `AGENTS.md`.
 
 ### Checklist
 
-- [ ] Define strict structured output schema in docs and code.
-- [ ] Include board JSON, user prompt, and conversation history in AI request.
-- [ ] Parse and validate AI response against strict schema.
-- [ ] Reject non-conforming AI responses in backend with explicit error handling.
-- [ ] Support optional board update payload plus user-facing text response.
+- [x] Define strict structured output schema in docs and code.
+- [x] Include board JSON, user prompt, and conversation history in AI request.
+- [x] Parse and validate AI response against strict schema.
+- [x] Reject non-conforming AI responses in backend with explicit error handling.
+- [x] Support optional board update payload plus user-facing text response.
 
 ### Tests
 
 - Unit:
-  - [ ] Schema validator tests for valid/invalid response payloads.
-  - [ ] Conversation packaging tests.
+  - [x] Schema validator tests for valid/invalid response payloads.
+  - [x] Conversation packaging tests.
 - Integration:
-  - [ ] End-to-end backend flow test with mocked AI returning:
+  - [x] End-to-end backend flow test with mocked AI returning:
     - valid response only
     - valid response + board mutation
     - invalid schema response (must be rejected)
 - Coverage:
-  - [ ] Backend changed units >= 80%.
+  - [x] Backend changed units >= 80%.
 
 ### Success Criteria
 
-- [ ] AI responses are schema-validated reliably.
-- [ ] Non-conforming responses are rejected safely.
-- [ ] Valid board mutation payloads can be applied.
+- [x] AI responses are schema-validated reliably.
+- [x] Non-conforming responses are rejected safely.
+- [x] Valid board mutation payloads can be applied.
 
 ## Part 10 - Sidebar AI Chat UX + Live Board Refresh
 

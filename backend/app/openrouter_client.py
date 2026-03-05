@@ -32,10 +32,23 @@ class OpenRouterClient:
         return api_key
 
     def ask(self, prompt: str) -> str:
+        return self.chat([{"role": "user", "content": prompt}])
+
+    def chat(self, messages: list[dict[str, str]]) -> str:
         api_key = self._resolve_api_key()
+        if not messages:
+            raise OpenRouterRequestError("messages must not be empty")
+        for message in messages:
+            role = message.get("role")
+            content = message.get("content")
+            if role not in {"system", "user", "assistant"}:
+                raise OpenRouterRequestError("message role must be system, user, or assistant")
+            if not isinstance(content, str) or not content.strip():
+                raise OpenRouterRequestError("message content must be a non-empty string")
+
         payload = {
             "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": messages,
         }
         request = Request(
             url=f"{self.api_base_url}/chat/completions",

@@ -9,10 +9,20 @@ from app.openrouter_client import OpenRouterRequestError
 
 
 class StubAIClient:
-    def __init__(self, model: str, response: str | None = None, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        model: str,
+        response: str | None = None,
+        error: Exception | None = None,
+        chat_response: str | None = None,
+        chat_error: Exception | None = None,
+    ) -> None:
         self.model = model
         self._response = response
         self._error = error
+        self._chat_response = chat_response
+        self._chat_error = chat_error
+        self.last_messages: list[dict[str, str]] = []
 
     def smoke_check(self) -> str:
         if self._error is not None:
@@ -20,6 +30,14 @@ class StubAIClient:
         if self._response is None:
             raise RuntimeError("stub response missing")
         return self._response
+
+    def chat(self, messages: list[dict[str, str]]) -> str:
+        self.last_messages = messages
+        if self._chat_error is not None:
+            raise self._chat_error
+        if self._chat_response is None:
+            raise RuntimeError("stub chat response missing")
+        return self._chat_response
 
 
 def test_root_serves_hello_html_without_static_build(tmp_path: Path) -> None:
@@ -90,6 +108,91 @@ def test_ai_connectivity_missing_api_key_returns_500_and_logs(
     assert response.status_code == 500
     assert response.json()["detail"] == "OPENROUTER_API_KEY is not set"
     assert "OpenRouter connectivity failed due to missing config" in caplog.text
+
+
+def test_ai_chat_returns_message_without_board_update(tmp_path: Path) -> None:
+    stub_ai_client = StubAIClient(
+        model="openrouter/free",
+        chat_response='{"message":"No board update needed.","board":null}',
+    )
+    client = TestClient(
+        create_app(frontend_dir=None, db_path=tmp_path / "pm.sqlite3", ai_client=stub_ai_client)
+    )
+
+    response = client.post(
+        "/api/ai/chat/user",
+        json={
+            "prompt": "Summarize my board",
+            "conversationHistory": [{"role": "user", "content": "Can you help me?"}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "model": "openrouter/free",
+        "reply": "No board update needed.",
+        "boardUpdated": False,
+        "board": None,
+    }
+    assert len(stub_ai_client.last_messages) == 3
+    assert "Current board JSON:" in stub_ai_client.last_messages[-1]["content"]
+    assert "User prompt:" in stub_ai_client.last_messages[-1]["content"]
+
+
+def test_ai_chat_applies_valid_board_mutation(tmp_path: Path) -> None:
+    updated_board = {
+        "columns": [{"id": "col-1", "title": "Todo", "cardIds": ["card-1"]}],
+        "cards": {
+            "card-1": {
+                "id": "card-1",
+                "title": "Write API tests",
+                "details": "Ensure put/get round-trip works.",
+            }
+        },
+    }
+    stub_ai_client = StubAIClient(
+        model="openrouter/free",
+        chat_response='{"message":"Applied your requested update.","board":{"columns":[{"id":"col-1","title":"Todo","cardIds":["card-1"]}],"cards":{"card-1":{"id":"card-1","title":"Write API tests","details":"Ensure put/get round-trip works."}}}}',
+    )
+    client = TestClient(
+        create_app(frontend_dir=None, db_path=tmp_path / "pm.sqlite3", ai_client=stub_ai_client)
+    )
+
+    chat_response = client.post(
+        "/api/ai/chat/user",
+        json={"prompt": "Create one todo card named Write API tests", "conversationHistory": []},
+    )
+    board_response = client.get("/api/board/user")
+
+    assert chat_response.status_code == 200
+    assert chat_response.json() == {
+        "status": "ok",
+        "model": "openrouter/free",
+        "reply": "Applied your requested update.",
+        "boardUpdated": True,
+        "board": updated_board,
+    }
+    assert board_response.status_code == 200
+    assert board_response.json()["board"] == updated_board
+
+
+def test_ai_chat_rejects_invalid_ai_schema_response(tmp_path: Path) -> None:
+    stub_ai_client = StubAIClient(
+        model="openrouter/free",
+        chat_response='{"reply":"wrong field","board":null}',
+    )
+    client = TestClient(
+        create_app(frontend_dir=None, db_path=tmp_path / "pm.sqlite3", ai_client=stub_ai_client)
+    )
+
+    response = client.post(
+        "/api/ai/chat/user",
+        json={"prompt": "Summarize board", "conversationHistory": []},
+    )
+
+    assert response.status_code == 502
+    assert "must include only 'message' and optional 'board'" in response.json()["detail"]
 
 
 def test_database_bootstrap_creates_file_and_seed_board(tmp_path: Path) -> None:
