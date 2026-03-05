@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 import {
+  closestCenter,
   DndContext,
   DragOverlay,
   PointerSensor,
+  pointerWithin,
   useSensor,
   useSensors,
-  closestCorners,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -15,7 +17,11 @@ import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
 
-export const KanbanBoard = () => {
+type KanbanBoardProps = {
+  onLogout?: () => void;
+};
+
+export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData>(() => initialData);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
@@ -26,6 +32,14 @@ export const KanbanBoard = () => {
   );
 
   const cardsById = useMemo(() => board.cards, [board.cards]);
+
+  const collisionDetectionStrategy: CollisionDetection = (args) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    return closestCenter(args);
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(event.active.id as string);
@@ -118,6 +132,15 @@ export const KanbanBoard = () => {
               <p className="mt-2 text-lg font-semibold text-[var(--primary-blue)]">
                 One board. Five columns. Zero clutter.
               </p>
+              {onLogout ? (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="mt-4 rounded-full border border-[var(--stroke)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--navy-dark)] transition hover:border-[var(--navy-dark)]"
+                >
+                  Log out
+                </button>
+              ) : null}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -135,7 +158,7 @@ export const KanbanBoard = () => {
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={collisionDetectionStrategy}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
